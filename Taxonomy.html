@@ -40,24 +40,32 @@
     <script>
         // Define data
         const nodes = [
-            { id: 1, label: "Customer", color: "#FFA500", name: "John Doe" },
-            { id: 2, label: "Account", color: "#4682B4", number: "123456789" },
+            { id: "Taxonomy1", label: "Taxonomy", color: "#8dd3c7", topic:"Move Money"},
+            { id: "Taxonomy2", label: "Taxonomy", color: "#8dd3c7", topic:"Pay Bill"},
+            { id: "Taxonomy3", label: "Taxonomy", color: "#8dd3c7", topic:"Deposit" },
+            { id: "Taxonomy4", label: "Taxonomy", color: "#8dd3c7", topic:"Pay Bill from Iphone" },
+            { id: "Taxonomy5", label: "Taxonomy", color: "#8dd3c7", topic:"Pay Bill from Android" },
+            { id: "Taxonomy6", label: "Taxonomy", color: "#8dd3c7", topic:"Check Balance" },
+            { id: "Taxonomy7", label: "Taxonomy", color: "#8dd3c7", topic:"Checking Account" },
+            { id: "Taxonomy8", label: "Taxonomy", color: "#8dd3c7", topic:"Savings Account" },
             { id: 3, label: "Transaction", color: "#8B008B", interaction_id: "INT001" },
             { id: 4, label: "Interaction", color: "#32CD32", interaction_id: "INT001", timestamp: "2023-05-01 10:30:00" },
-            { id: 5, label: "Household", color: "#9370DB", household_id: "HH001" },
             { id: 6, label: "Interaction", color: "#32CD32", interaction_id: "INT002", timestamp: "2023-05-02 14:45:00" }
         ];
-
         const links = [
-            { source: 1, target: 2, relation: "owns" },
-            { source: 2, target: 3, relation: "has", amount: 1000 },
-            { source: 1, target: 4, relation: "initiates" },
+            { source: "Taxonomy1", target: "Taxonomy2" },
+            { source: "Taxonomy1", target: "Taxonomy3" },
+            { source: "Taxonomy2", target: "Taxonomy4" },
+            { source: "Taxonomy2", target: "Taxonomy5" },
+            { source: "Taxonomy6", target: "Taxonomy7" },
+            { source: "Taxonomy6", target: "Taxonomy8" },
             { source: 4, target: 3, relation: "Next" },
-            { source: 1, target: 3, relation: "initiates" },
-            { source: 1, target: 5, relation: "member of" },
-            { source: 1, target: 6, relation: "initiates" },
-            { source: 6, target: 4, relation: "Next" }
+            { source: 6, target: 4, relation: "Next" },
+            { source: 4, target: "Taxonomy7", relation: "Has Intent" },
+            { source: 3, target: "Taxonomy4", relation: "Has Intent" },
+            { source: 6, target: "Taxonomy7", relation: "Has Intent" }
         ];
+
 
         const svg = d3.select("svg"),
               width = +svg.node().getBoundingClientRect().width,
@@ -160,7 +168,7 @@
         // Helper function to get node properties
         function getNodeProperties(node) {
             const properties = [];
-            if (node.name) properties.push(`Name: ${node.name}`);
+            if (node.topic) properties.push(`Topic: ${node.topic}`);
             if (node.number) properties.push(`Number: ${node.number}`);
             if (node.interaction_id) properties.push(`Interaction ID: ${node.interaction_id}`);
             if (node.timestamp) properties.push(`Timestamp: ${node.timestamp}`);
@@ -230,15 +238,16 @@
 
         // Add markdown content
         const markdownContent = `
-# Customer Ontology and Facts Graphlet
-The Customer entity is related to one or more Accounts, Households and Interactions. 
+# Taxonomy and Facts Graphlet
+Facts/Interactions are related to ongoing business activities. There are root activities eg move money or check balances that traces up through the business taxonomy into the fact/interaction. 
 
 ## Key Features
-- Accounts can have one or more Customers,  Households can have one or more Customers.
-- Interactions only have one Customer.  Transactions also have the Interaction label
-- All node entities can carry properties.  eg. Customer has name, age,... Accounts have a number, balance, etc.
-- Links can have properties.  eg.  HAS relation can have an ammout,  an open account/ close account boolean, etc.
-- Interactions are temporally connected with the  "Next"  relation. 
+- All interactions are related into the Taxonomy. 
+- From each interaction through the Taxonomy to the root activity, there is one distinct acyclic path.
+- The Taxonomy is a forest of trees - The one above has "Check Balance" and "Move Money" as the root activities.
+- The example above can be summarized as for the three interactions, the customer has checked their checking account balance 2x then moved money by paying a bill on iphone
+
+
 
 `;
 
@@ -247,5 +256,3 @@ The Customer entity is related to one or more Accounts, Households and Interacti
     </script>
 </body>
 </html>
-
-  
