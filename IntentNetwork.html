@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Schema Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4/marked.min.js"></script>
+    <style>
+        svg {
+            width: 100%;
+            height: 600px;
+            border: 1px solid lightgray;
+        }
+        text {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 5px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .markdown-content {
+            margin-top: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <svg></svg>
+
+    <div id="markdown" class="markdown-content"></div>
+
+    <script>
+        // Define data
+        const nodes = [
+            { id: "Taxonomy4", label: "Taxonomy", color: "#8dd3c7", topic:"Pay Bill from Iphone" },
+            { id: "Taxonomy7", label: "Taxonomy", color: "#8dd3c7", topic:"Checking Account" },
+            { id: "Taxonomy8", label: "Taxonomy", color: "#8dd3c7", topic:"Savings Account" },
+            { id: 3, label: "Transaction", color: "#8B008B", interaction_id: "INT001" },
+            { id: 4, label: "Interaction", color: "#32CD32", interaction_id: "INT001", timestamp: "2023-05-01 10:30:00" },
+            { id: 6, label: "Interaction", color: "#32CD32", interaction_id: "INT002", timestamp: "2023-05-02 14:45:00" },
+            { id: 7, label: "Interaction", color: "#32CD32", interaction_id: "INT002", timestamp: "2023-06-02 14:45:00" }
+        ];
+        const links = [
+            { source: 4, target: 3, relation: "Next" },
+            { source: 6, target: 4, relation: "Next" },
+            { source: 3, target: 7, relation: "Next" },
+            { source: "Taxonomy7", target: "Taxonomy7", relation: "Next_Intent", Name: "John Doe", interaction_id: "INT001", timestamp: "2023-05-01 10:30:00" },
+            { source: "Taxonomy7", target: "Taxonomy4", relation: "Next_Intent" , Name:"John Doe", interaction_id: "INT002", timestamp: "2023-05-02 14:45:00"},
+            { source: "Taxonomy4", target: "Taxonomy8", relation: "Next_Intent" , Name:"John Doe", amount: 1000 }
+        ];
+
+        const svg = d3.select("svg"),
+              width = +svg.node().getBoundingClientRect().width,
+              height = +svg.node().getBoundingClientRect().height;
+
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        // Define arrow marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 0 10 10")
+            .attr("refX", 80)
+            .attr("refY", 5)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M 0 0 L 10 5 L 0 10 z")
+            .attr("fill", "#999");
+
+        // Draw links
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(links)
+            .enter().append("path")
+            .attr("fill", "none")
+            .attr("stroke", "#999")
+            .attr("stroke-width", 2)
+            .attr("marker-end", d => d.source === d.target ? "" : "url(#arrowhead)");
+
+        // Draw link labels (relationship names)
+        const linkLabel = svg.append("g")
+            .selectAll("text")
+            .data(links)
+            .enter().append("text")
+            .attr("font-size", "12px")
+            .attr("fill", "#555")
+            .text(d => d.relation);
+
+        // Draw nodes
+        const node = svg.append("g")
+            .selectAll("circle")
+            .data(nodes)
+            .enter().append("circle")
+            .attr("r", 20)
+            .attr("fill", d => d.color)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // Draw node labels
+        const nodeLabel = svg.append("g")
+            .selectAll("text")
+            .data(nodes)
+            .enter().append("text")
+            .text(d => d.label)
+            .attr("font-size", "14px")
+            .attr("dx", 24)
+            .attr("dy", 5);
+
+        // Create tooltip
+        const tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        // Show tooltip on mouseover
+        node.on("mouseover", function(event, d) {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", 0.9);
+            tooltip.html(getNodeProperties(d))
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function(d) {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
+
+        // Show tooltip on mouseover
+        link.on("mouseover", function(event, d) {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", 0.9);
+            tooltip.html(getLinkProperties(d))
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function(d) {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
+
+        // Helper function to get node properties
+        function getNodeProperties(node) {
+            const properties = [];
+            if (node.topic) properties.push(`Topic: ${node.topic}`);
+            if (node.number) properties.push(`Number: ${node.number}`);
+            if (node.interaction_id) properties.push(`Interaction ID: ${node.interaction_id}`);
+            if (node.timestamp) properties.push(`Timestamp: ${node.timestamp}`);
+            if (node.household_id) properties.push(`Household ID: ${node.household_id}`);
+            return properties.join("<br>");
+        }
+
+        // Helper function to get link properties
+        function getLinkProperties(link) {
+            const properties = [];
+            if (link.relation) properties.push(`Relation: ${link.relation}`);
+            if (link.amount) properties.push(`Amount: ${link.amount}`);
+            if (link.Name) properties.push(`Name: ${link.Name}`);
+            if (link.timestamp) properties.push(`timestamp: ${link.timestamp}`);
+            return properties.join("<br>");
+        }
+
+        // Update link paths on each simulation tick
+        simulation.on("tick", () => {
+            link
+                .attr("d", d => {
+                    if (d.source === d.target) {
+                        // Draw a self-loop
+                        const radius = 30;
+                        const start = Math.PI / 2;
+                        const end = start * 3;
+                        const x = d.source.x;
+                        const y = d.source.y;
+                        return `M${x},${y} m0,-${radius} a${radius},${radius} 0 1,0 0,${2 * radius} a${radius},${radius} 0 1,0 0,-${2 * radius}`;
+                    } else {
+                        // Draw a regular link
+                        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                    }
+                });
+
+            linkLabel
+                .attr("x", d => {
+                    if (d.source === d.target) {
+                        // Position label for self-loop
+                        const radius = 40;
+                        const angle = Math.PI / 4;
+                        const x = d.source.x + radius * Math.cos(angle);
+                        const y = d.source.y + radius * Math.sin(angle);
+                        return x;
+                    } else {
+                        // Position label for regular link
+                        return (d.source.x + d.target.x) / 2;
+                    }
+                })
+                .attr("y", d => {
+                    if (d.source === d.target) {
+                        // Position label for self-loop
+                        const radius = 40;
+                        const angle = Math.PI / 4;
+                        const x = d.source.x + radius * Math.cos(angle);
+                        const y = d.source.y + radius * Math.sin(angle);
+                        return y;
+                    } else {
+                        // Position label for regular link
+                        return (d.source.y + d.target.y) / 2;
+                    }
+                });
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            nodeLabel
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+        });
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Zoom and pan functionality
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 5])
+            .on("zoom", zoomed);
+
+        svg.call(zoom);
+
+        function zoomed({ transform }) {
+            node.attr("transform", transform);
+            link.attr("transform", transform);
+            linkLabel.attr("transform", transform);
+            nodeLabel.attr("transform", transform);
+        }
+
+        // Add markdown content
+        const markdownContent = `
+# The Intent Network
+The Intent Network is a graph that generalizes all cutomer journeys.  Nodes are the intents - the top taxonomy nodes. Each edge corrosponds to each Next relation.  These edges can have any property from the customer ontology plus any properties from the initial interaction referenced by Next relation 
+
+## Key Features
+- If a customer had two interactions with the same top taxonomy topic, A self referential edge is created.
+- Two taxonomy topics can have multiple edges between them. There will be and edge for each interaction.
+- The edge can have arbitrary properties assigned to it.  eg. the edge from Pay Bill from Iphone to Savings Account has a property called "Amount" with a value of 1000 and Name "John Doe".
+- The multiple edges between two topics can have a summary relation between the two topics containing a count number of edges property.
+- The network with summary edges is the bases for community and centrality algorithms.
+
+
+`;
+
+        // Convert markdown to HTML and insert it into the page
+        document.getElementById('markdown').innerHTML = marked.parse(markdownContent);
+    </script>
+</body>
+</html>
